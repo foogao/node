@@ -51,6 +51,7 @@ namespace node {
 namespace fs {
 
 using v8::Array;
+using v8::BigInt;
 using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
@@ -84,19 +85,26 @@ const char* const kPathSeparator = "\\/";
 #endif
 
 std::string Basename(const std::string& str, const std::string& extension) {
-  std::string ret = str;
-
   // Remove everything leading up to and including the final path separator.
-  std::string::size_type pos = ret.find_last_of(kPathSeparator);
-  if (pos != std::string::npos) ret = ret.substr(pos + 1);
+  std::string::size_type pos = str.find_last_of(kPathSeparator);
 
-  // Strip away the extension, if any.
-  if (ret.size() >= extension.size() &&
-      ret.substr(ret.size() - extension.size()) == extension) {
-    ret = ret.substr(0, ret.size() - extension.size());
+  // Starting index for the resulting string
+  std::size_t start_pos = 0;
+  // String size to return
+  std::size_t str_size = str.size();
+  if (pos != std::string::npos) {
+    start_pos = pos + 1;
+    str_size -= start_pos;
   }
 
-  return ret;
+  // Strip away the extension, if any.
+  if (str_size >= extension.size() &&
+      str.compare(str.size() - extension.size(),
+        extension.size(), extension) == 0) {
+    str_size -= extension.size();
+  }
+
+  return str.substr(start_pos, str_size);
 }
 
 inline int64_t GetOffset(Local<Value> value) {
@@ -281,6 +289,7 @@ inline void FileHandle::Close() {
 void FileHandle::CloseReq::Resolve() {
   Isolate* isolate = env()->isolate();
   HandleScope scope(isolate);
+  Context::Scope context_scope(env()->context());
   InternalCallbackScope callback_scope(this);
   Local<Promise> promise = promise_.Get(isolate);
   Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();
@@ -290,6 +299,7 @@ void FileHandle::CloseReq::Resolve() {
 void FileHandle::CloseReq::Reject(Local<Value> reason) {
   Isolate* isolate = env()->isolate();
   HandleScope scope(isolate);
+  Context::Scope context_scope(env()->context());
   InternalCallbackScope callback_scope(this);
   Local<Promise> promise = promise_.Get(isolate);
   Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();
@@ -1823,8 +1833,8 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK_LE(static_cast<uint64_t>(off_64), buffer_length);
   const size_t off = static_cast<size_t>(off_64);
 
-  CHECK(args[3]->IsInt32());
-  const size_t len = static_cast<size_t>(args[3].As<Int32>()->Value());
+  CHECK(IsSafeJsInt(args[3]));
+  const size_t len = static_cast<size_t>(args[3].As<Integer>()->Value());
   CHECK(Buffer::IsWithinBounds(off, len, buffer_length));
   CHECK_LE(len, buffer_length);
   CHECK_GE(off + len, off);
@@ -1937,7 +1947,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
       auto ext = string->GetExternalOneByteStringResource();
       buf = const_cast<char*>(ext->data());
       len = ext->length();
-    } else if (enc == UCS2 && IsLittleEndian() && string->IsExternal()) {
+    } else if (enc == UCS2 && IsLittleEndian() && string->IsExternalTwoByte()) {
       auto ext = string->GetExternalStringResource();
       buf = reinterpret_cast<char*>(const_cast<uint16_t*>(ext->data()));
       len = ext->length() * sizeof(*ext->data());
@@ -2029,8 +2039,10 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
   const size_t len = static_cast<size_t>(args[3].As<Int32>()->Value());
   CHECK(Buffer::IsWithinBounds(off, len, buffer_length));
 
-  CHECK(IsSafeJsInt(args[4]));
-  const int64_t pos = args[4].As<Integer>()->Value();
+  CHECK(IsSafeJsInt(args[4]) || args[4]->IsBigInt());
+  const int64_t pos = args[4]->IsNumber() ?
+                      args[4].As<Integer>()->Value() :
+                      args[4].As<BigInt>()->Int64Value();
 
   char* buf = buffer_data + off;
   uv_buf_t uvbuf = uv_buf_init(buf, len);
@@ -2462,13 +2474,7 @@ void Initialize(Local<Object> target,
   fst->InstanceTemplate()->SetInternalFieldCount(
       FSReqBase::kInternalFieldCount);
   fst->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  Local<String> wrapString =
-      FIXED_ONE_BYTE_STRING(isolate, "FSReqCallback");
-  fst->SetClassName(wrapString);
-  target
-      ->Set(context, wrapString,
-            fst->GetFunction(env->context()).ToLocalChecked())
-      .Check();
+  env->SetConstructorFunction(target, "FSReqCallback", fst);
 
   // Create FunctionTemplate for FileHandleReadWrap. There’s no need
   // to do anything in the constructor, so we only store the instance template.
@@ -2499,14 +2505,8 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(fd, "releaseFD", FileHandle::ReleaseFD);
   Local<ObjectTemplate> fdt = fd->InstanceTemplate();
   fdt->SetInternalFieldCount(StreamBase::kInternalFieldCount);
-  Local<String> handleString =
-       FIXED_ONE_BYTE_STRING(isolate, "FileHandle");
-  fd->SetClassName(handleString);
   StreamBase::AddMethods(env, fd);
-  target
-      ->Set(context, handleString,
-            fd->GetFunction(env->context()).ToLocalChecked())
-      .Check();
+  env->SetConstructorFunction(target, "FileHandle", fd);
   env->set_fd_constructor_template(fdt);
 
   // Create FunctionTemplate for FileHandle::CloseReq
@@ -2527,6 +2527,9 @@ void Initialize(Local<Object> target,
               use_promises_symbol).Check();
 }
 
+BindingData* FSReqBase::binding_data() {
+  return binding_data_.get();
+}
 }  // namespace fs
 
 }  // end namespace node

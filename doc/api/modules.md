@@ -98,10 +98,9 @@ may be necessary to install a specific version of package `bar`. The `bar`
 package may itself have dependencies, and in some cases, these may even collide
 or form cyclic dependencies.
 
-Since Node.js looks up the `realpath` of any modules it loads (that is,
-resolves symlinks), and then looks for their dependencies in the `node_modules`
-folders as described [here](#modules_loading_from_node_modules_folders), this
-situation is very simple to resolve with the following architecture:
+Because Node.js looks up the `realpath` of any modules it loads (that is, it
+resolves symlinks) and then [looks for their dependencies in `node_modules` folders](#modules_loading_from_node_modules_folders),
+this situation can be resolved with the following architecture:
 
 * `/usr/lib/node/foo/1.2.3/`: Contents of the `foo` package, version 1.2.3.
 * `/usr/lib/node/bar/4.3.2/`: Contents of the `bar` package that `foo` depends
@@ -391,8 +390,8 @@ directories, and then provide a single entry point to those directories.
 There are three ways in which a folder may be passed to `require()` as
 an argument.
 
-The first is to create a `package.json` file in the root of the folder,
-which specifies a `main` module. An example `package.json` file might
+The first is to create a [`package.json`][] file in the root of the folder,
+which specifies a `main` module. An example [`package.json`][] file might
 look like this:
 
 ```json
@@ -406,10 +405,10 @@ If this was in a folder at `./some-library`, then
 
 This is the extent of the awareness of `package.json` files within Node.js.
 
-If there is no `package.json` file present in the directory, or if the
-`'main'` entry is missing or cannot be resolved, then Node.js
+If there is no [`package.json`][] file present in the directory, or if the
+[`"main"`][] entry is missing or cannot be resolved, then Node.js
 will attempt to load an `index.js` or `index.node` file out of that
-directory. For example, if there was no `package.json` file in the above
+directory. For example, if there was no [`package.json`][] file in the previous
 example, then `require('./some-library')` would attempt to load:
 
 * `./some-library/index.js`
@@ -504,7 +503,7 @@ wrapper that looks like the following:
 By doing this, Node.js achieves a few things:
 
 * It keeps top-level variables (defined with `var`, `const` or `let`) scoped to
-the module rather than the global object.
+  the module rather than the global object.
 * It helps to provide some global-looking variables that are actually specific
   to the module, such as:
   * The `module` and `exports` objects that the implementor can use to export
@@ -889,6 +888,14 @@ added: v0.1.16
 The identifier for the module. Typically this is the fully resolved
 filename.
 
+### `module.isPreloading`
+<!-- YAML
+added: v15.4.0
+-->
+
+* Type: {boolean} `true` if the module is running during the Node.js preload
+  phase.
+
 ### `module.loaded`
 <!-- YAML
 added: v0.1.16
@@ -902,7 +909,9 @@ loading.
 ### `module.parent`
 <!-- YAML
 added: v0.1.16
-deprecated: v14.6.0
+deprecated:
+  - v14.6.0
+  - v12.19.0
 -->
 
 > Stability: 0 - Deprecated: Please use [`require.main`][] and
@@ -912,7 +921,7 @@ deprecated: v14.6.0
 
 The module that first required this one, or `null` if the current module is the
 entry point of the current process, or `undefined` if the module was loaded by
-something that is not a CommonJS module (E.G.: REPL or `import`). Read only.
+something that is not a CommonJS module (E.G.: REPL or `import`).
 
 ### `module.path`
 <!-- YAML
@@ -952,7 +961,7 @@ in order to be used.
 ## The `Module` object
 
 This section was moved to
-[Modules: `module` core module](modules_module.html#modules_module_the_module_object).
+[Modules: `module` core module](module.md#module_the_module_object).
 
 <!-- Anchors to make sure old links find a target -->
 * <a id="modules_module_builtinmodules" href="module.html#module_module_builtinmodules">`module.builtinModules`</a>
@@ -963,26 +972,28 @@ This section was moved to
 ## Source map v3 support
 
 This section was moved to
-[Modules: `module` core module](modules_module.html#modules_module_source_map_v3_support).
+[Modules: `module` core module](module.md#module_source_map_v3_support).
 
 <!-- Anchors to make sure old links find a target -->
-* <a id="modules_module_findsourcemap_path_error" href="module.html#module_module_findsourcemap_path_error">`module.findSourceMap(path[, error])`</a>
+* <a id="modules_module_findsourcemap_path_error" href="module.html#module_module_findsourcemap_path">`module.findSourceMap(path)`</a>
 * <a id="modules_class_module_sourcemap" href="module.html#module_class_module_sourcemap">Class: `module.SourceMap`</a>
   * <a id="modules_new_sourcemap_payload" href="module.html#module_new_sourcemap_payload">`new SourceMap(payload)`</a>
   * <a id="modules_sourcemap_payload" href="module.html#module_sourcemap_payload">`sourceMap.payload`</a>
   * <a id="modules_sourcemap_findentry_linenumber_columnnumber" href="module.html#module_sourcemap_findentry_linenumber_columnnumber">`sourceMap.findEntry(lineNumber, columnNumber)`</a>
 
+[ECMAScript Modules]: esm.md
 [GLOBAL_FOLDERS]: #modules_loading_from_the_global_folders
-[`Error`]: errors.html#errors_class_error
+[`"main"`]: packages.md#packages_main
+[`Error`]: errors.md#errors_class_error
 [`__dirname`]: #modules_dirname
 [`__filename`]: #modules_filename
 [`module` object]: #modules_the_module_object
 [`module.id`]: #modules_module_id
 [`module.children`]: #modules_module_children
-[`path.dirname()`]: path.html#path_path_dirname_path
-[ECMAScript Modules]: esm.html
-[an error]: errors.html#errors_err_require_esm
+[`package.json`]: packages.md#packages_node_js_package_json_field_definitions
+[`path.dirname()`]: path.md#path_path_dirname_path
+[`require.main`]: #modules_require_main
+[an error]: errors.md#errors_err_require_esm
 [exports shortcut]: #modules_exports_shortcut
 [module resolution]: #modules_all_together
-[native addons]: addons.html
-[`require.main`]: #modules_require_main
+[native addons]: addons.md

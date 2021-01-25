@@ -215,8 +215,11 @@ constexpr size_t kFsStatsBufferLength =
   V(destroyed_string, "destroyed")                                             \
   V(detached_string, "detached")                                               \
   V(dh_string, "DH")                                                           \
+  V(divisor_length_string, "divisorLength")                                    \
   V(dns_a_string, "A")                                                         \
   V(dns_aaaa_string, "AAAA")                                                   \
+  V(dns_caa_string, "CAA")                                                     \
+  V(dns_critical_string, "critical")                                           \
   V(dns_cname_string, "CNAME")                                                 \
   V(dns_mx_string, "MX")                                                       \
   V(dns_naptr_string, "NAPTR")                                                 \
@@ -277,6 +280,25 @@ constexpr size_t kFsStatsBufferLength =
   V(isclosing_string, "isClosing")                                             \
   V(issuer_string, "issuer")                                                   \
   V(issuercert_string, "issuerCertificate")                                    \
+  V(jwk_crv_string, "crv")                                                     \
+  V(jwk_d_string, "d")                                                         \
+  V(jwk_dp_string, "dp")                                                       \
+  V(jwk_dq_string, "dq")                                                       \
+  V(jwk_dsa_string, "DSA")                                                     \
+  V(jwk_e_string, "e")                                                         \
+  V(jwk_ec_string, "EC")                                                       \
+  V(jwk_g_string, "g")                                                         \
+  V(jwk_k_string, "k")                                                         \
+  V(jwk_p_string, "p")                                                         \
+  V(jwk_q_string, "q")                                                         \
+  V(jwk_qi_string, "qi")                                                       \
+  V(jwk_kty_string, "kty")                                                     \
+  V(jwk_n_string, "n")                                                         \
+  V(jwk_oct_string, "oct")                                                     \
+  V(jwk_okp_string, "OKP")                                                     \
+  V(jwk_rsa_string, "RSA")                                                     \
+  V(jwk_x_string, "x")                                                         \
+  V(jwk_y_string, "y")                                                         \
   V(kill_signal_string, "killSignal")                                          \
   V(kind_string, "kind")                                                       \
   V(length_string, "length")                                                   \
@@ -290,7 +312,9 @@ constexpr size_t kFsStatsBufferLength =
   V(minttl_string, "minttl")                                                   \
   V(module_string, "module")                                                   \
   V(modulus_string, "modulus")                                                 \
+  V(modulus_length_string, "modulusLength")                                    \
   V(name_string, "name")                                                       \
+  V(named_curve_string, "namedCurve")                                          \
   V(netmask_string, "netmask")                                                 \
   V(next_string, "next")                                                       \
   V(nistcurve_string, "nistCurve")                                             \
@@ -321,6 +345,7 @@ constexpr size_t kFsStatsBufferLength =
   V(options_string, "options")                                                 \
   V(order_string, "order")                                                     \
   V(output_string, "output")                                                   \
+  V(overlapped_string, "overlapped")                                           \
   V(parse_error_string, "Parse Error")                                         \
   V(password_string, "password")                                               \
   V(path_string, "path")                                                       \
@@ -339,6 +364,7 @@ constexpr size_t kFsStatsBufferLength =
   V(promise_string, "promise")                                                 \
   V(psk_string, "psk")                                                         \
   V(pubkey_string, "pubkey")                                                   \
+  V(public_exponent_string, "publicExponent")                                  \
   V(query_string, "query")                                                     \
   V(http3_alpn_string, "h3-29")                                                \
   V(rate_string, "rate")                                                       \
@@ -424,6 +450,7 @@ constexpr size_t kFsStatsBufferLength =
   V(async_wrap_object_ctor_template, v8::FunctionTemplate)                     \
   V(base_object_ctor_template, v8::FunctionTemplate)                           \
   V(binding_data_ctor_template, v8::FunctionTemplate)                          \
+  V(blob_constructor_template, v8::FunctionTemplate)                           \
   V(blocklist_instance_template, v8::ObjectTemplate)                           \
   V(compiled_fn_entry_template, v8::ObjectTemplate)                            \
   V(dir_instance_template, v8::ObjectTemplate)                                 \
@@ -452,6 +479,7 @@ constexpr size_t kFsStatsBufferLength =
   V(tty_constructor_template, v8::FunctionTemplate)                            \
   V(write_wrap_template, v8::ObjectTemplate)                                   \
   V(worker_heap_snapshot_taker_template, v8::ObjectTemplate)                   \
+  V(x509_constructor_template, v8::FunctionTemplate)                           \
   QUIC_ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
 
 #if defined(NODE_EXPERIMENTAL_QUIC) && NODE_EXPERIMENTAL_QUIC
@@ -522,6 +550,10 @@ constexpr size_t kFsStatsBufferLength =
   V(prepare_stack_trace_callback, v8::Function)                                \
   V(process_object, v8::Object)                                                \
   V(primordials, v8::Object)                                                   \
+  V(primordials_safe_map_prototype_object, v8::Object)                         \
+  V(primordials_safe_set_prototype_object, v8::Object)                         \
+  V(primordials_safe_weak_map_prototype_object, v8::Object)                    \
+  V(primordials_safe_weak_set_prototype_object, v8::Object)                    \
   V(promise_hook_handler, v8::Function)                                        \
   V(promise_reject_callback, v8::Function)                                     \
   V(script_data_constructor_function, v8::Function)                            \
@@ -574,6 +606,7 @@ class IsolateData : public MemoryRetainer {
 #undef VP
   inline v8::Local<v8::String> async_wrap_provider(int index) const;
 
+  size_t max_young_gen_size = 1;
   std::unordered_map<const char*, v8::Eternal<v8::String>> static_str_map;
 
   inline v8::Isolate* isolate() const;
@@ -731,9 +764,9 @@ class AsyncHooks : public MemoryRetainer {
   };
 
   struct SerializeInfo {
-    AliasedBufferInfo async_ids_stack;
-    AliasedBufferInfo fields;
-    AliasedBufferInfo async_id_fields;
+    AliasedBufferIndex async_ids_stack;
+    AliasedBufferIndex fields;
+    AliasedBufferIndex async_id_fields;
     SnapshotIndex js_execution_async_resources;
     std::vector<SnapshotIndex> native_execution_async_resources;
   };
@@ -783,7 +816,7 @@ class ImmediateInfo : public MemoryRetainer {
   void MemoryInfo(MemoryTracker* tracker) const override;
 
   struct SerializeInfo {
-    AliasedBufferInfo fields;
+    AliasedBufferIndex fields;
   };
   SerializeInfo Serialize(v8::Local<v8::Context> context,
                           v8::SnapshotCreator* creator);
@@ -815,7 +848,7 @@ class TickInfo : public MemoryRetainer {
   ~TickInfo() = default;
 
   struct SerializeInfo {
-    AliasedBufferInfo fields;
+    AliasedBufferIndex fields;
   };
   SerializeInfo Serialize(v8::Local<v8::Context> context,
                           v8::SnapshotCreator* creator);
@@ -867,7 +900,9 @@ class ShouldNotAbortOnUncaughtScope {
 
 class CleanupHookCallback {
  public:
-  CleanupHookCallback(void (*fn)(void*),
+  typedef void (*Callback)(void*);
+
+  CleanupHookCallback(Callback fn,
                       void* arg,
                       uint64_t insertion_order_counter)
       : fn_(fn), arg_(arg), insertion_order_counter_(insertion_order_counter) {}
@@ -887,7 +922,7 @@ class CleanupHookCallback {
 
  private:
   friend class Environment;
-  void (*fn_)(void*);
+  Callback fn_;
   void* arg_;
 
   // We keep track of the insertion order for these objects, so that we can
@@ -907,8 +942,8 @@ struct EnvSerializeInfo {
   TickInfo::SerializeInfo tick_info;
   ImmediateInfo::SerializeInfo immediate_info;
   performance::PerformanceState::SerializeInfo performance_state;
-  AliasedBufferInfo stream_base_state;
-  AliasedBufferInfo should_abort_on_uncaught_toggle;
+  AliasedBufferIndex stream_base_state;
+  AliasedBufferIndex should_abort_on_uncaught_toggle;
 
   std::vector<PropInfo> persistent_templates;
   std::vector<PropInfo> persistent_values;
@@ -934,11 +969,13 @@ class Environment : public MemoryRetainer {
   void CreateProperties();
   void DeserializeProperties(const EnvSerializeInfo* info);
 
-  typedef void (*BaseObjectIterator)(size_t, BaseObject*);
-  void ForEachBaseObject(BaseObjectIterator iterator);
   void PrintAllBaseObjects();
+  void VerifyNoStrongBaseObjects();
   // Should be called before InitializeInspector()
   void InitializeDiagnostics();
+
+  std::string GetCwd();
+
 #if HAVE_INSPECTOR
   // If the environment is created for a worker, pass parent_handle and
   // the ownership if transferred into the Environment.
@@ -981,9 +1018,6 @@ class Environment : public MemoryRetainer {
       FastStringKey,
       BaseObjectPtr<BaseObject>,
       FastStringKey::Hash> BindingDataStore;
-
-  static uv_key_t thread_local_env;
-  static inline Environment* GetThreadLocalEnv();
 
   // Create an Environment without initializing a main Context. Use
   // InitializeMainContext() to initialize a main context for it.
@@ -1160,8 +1194,6 @@ class Environment : public MemoryRetainer {
 
   inline bool filehandle_close_warning() const;
   inline void set_filehandle_close_warning(bool on);
-  inline bool emit_insecure_umask_warning() const;
-  inline void set_emit_insecure_umask_warning(bool on);
 
   inline void set_source_maps_enabled(bool on);
   inline bool source_maps_enabled() const;
@@ -1209,6 +1241,14 @@ class Environment : public MemoryRetainer {
   inline void SetProtoMethodNoSideEffect(v8::Local<v8::FunctionTemplate> that,
                                          const char* name,
                                          v8::FunctionCallback callback);
+
+  inline void SetConstructorFunction(v8::Local<v8::Object> that,
+                          const char* name,
+                          v8::Local<v8::FunctionTemplate> tmpl);
+
+  inline void SetConstructorFunction(v8::Local<v8::Object> that,
+                          v8::Local<v8::String> name,
+                          v8::Local<v8::FunctionTemplate> tmpl);
 
   void AtExit(void (*cb)(void* arg), void* arg);
   void RunAtExitCallbacks();
@@ -1295,10 +1335,14 @@ class Environment : public MemoryRetainer {
   void ScheduleTimer(int64_t duration);
   void ToggleTimerRef(bool ref);
 
-  inline void AddCleanupHook(void (*fn)(void*), void* arg);
-  inline void RemoveCleanupHook(void (*fn)(void*), void* arg);
+  using CleanupCallback = CleanupHookCallback::Callback;
+  inline void AddCleanupHook(CleanupCallback cb, void* arg);
+  inline void RemoveCleanupHook(CleanupCallback cb, void* arg);
   void RunCleanup();
 
+  static size_t NearHeapLimitCallback(void* data,
+                                      size_t current_heap_limit,
+                                      size_t initial_heap_limit);
   static void BuildEmbedderGraph(v8::Isolate* isolate,
                                  v8::EmbedderGraph* graph,
                                  void* data);
@@ -1386,7 +1430,6 @@ class Environment : public MemoryRetainer {
   bool emit_env_nonstring_warning_ = true;
   bool emit_err_name_warning_ = true;
   bool emit_filehandle_warning_ = true;
-  bool emit_insecure_umask_warning_ = true;
   bool source_maps_enabled_ = false;
 
   size_t async_callback_scope_depth_ = 0;
@@ -1417,6 +1460,9 @@ class Environment : public MemoryRetainer {
   std::vector<std::string> exec_argv_;
   std::vector<std::string> argv_;
   std::string exec_path_;
+
+  bool is_processing_heap_limit_callback_ = false;
+  int64_t heap_limit_snapshot_taken_ = 0;
 
   uint32_t module_id_counter_ = 0;
   uint32_t script_id_counter_ = 0;

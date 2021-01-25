@@ -43,8 +43,14 @@ for (const line of [...nodeOptionsLines, ...v8OptionsLines]) {
 const conditionalOpts = [
   { include: common.hasCrypto,
     filter: (opt) => {
-      return ['--openssl-config', '--tls-cipher-list', '--use-bundled-ca',
-              '--use-openssl-ca' ].includes(opt);
+      return [
+        '--openssl-config',
+        '--tls-cipher-list',
+        '--use-bundled-ca',
+        '--use-openssl-ca',
+        '--secure-heap',
+        '--secure-heap-min',
+      ].includes(opt);
     } },
   {
     // We are using openssl_is_fips from the configuration because it could be
@@ -88,6 +94,7 @@ assert(undocumented.delete('--experimental-report'));
 assert(undocumented.delete('--experimental-worker'));
 assert(undocumented.delete('--no-node-snapshot'));
 assert(undocumented.delete('--loader'));
+assert(undocumented.delete('--verify-base-objects'));
 
 assert.strictEqual(undocumented.size, 0,
                    'The following options are not documented as allowed in ' +

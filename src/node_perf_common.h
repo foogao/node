@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "aliased_buffer.h"
 #include "node.h"
 #include "uv.h"
 #include "v8.h"
@@ -56,9 +57,9 @@ enum PerformanceEntryType {
 class PerformanceState {
  public:
   struct SerializeInfo {
-    AliasedBufferInfo root;
-    AliasedBufferInfo milestones;
-    AliasedBufferInfo observers;
+    AliasedBufferIndex root;
+    AliasedBufferIndex milestones;
+    AliasedBufferIndex observers;
   };
 
   explicit PerformanceState(v8::Isolate* isolate, const SerializeInfo* info);

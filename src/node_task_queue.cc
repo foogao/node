@@ -21,34 +21,12 @@ using v8::kPromiseRejectAfterResolved;
 using v8::kPromiseRejectWithNoHandler;
 using v8::kPromiseResolveAfterResolved;
 using v8::Local;
-using v8::MicrotasksScope;
 using v8::Number;
 using v8::Object;
 using v8::Promise;
 using v8::PromiseRejectEvent;
 using v8::PromiseRejectMessage;
 using v8::Value;
-
-namespace task_queue {
-
-static void EnqueueMicrotask(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-
-  CHECK(args[0]->IsFunction());
-
-  isolate->EnqueueMicrotask(args[0].As<Function>());
-}
-
-static void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
-  MicrotasksScope::PerformCheckpoint(args.GetIsolate());
-}
-
-static void SetTickCallback(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  CHECK(args[0]->IsFunction());
-  env->set_tick_callback_function(args[0].As<Function>());
-}
 
 void PromiseRejectCallback(PromiseRejectMessage message) {
   static std::atomic<uint64_t> unhandledRejections{0};
@@ -60,7 +38,7 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
 
   Environment* env = Environment::GetCurrent(isolate);
 
-  if (env == nullptr) return;
+  if (env == nullptr || !env->can_call_into_js()) return;
 
   Local<Function> callback = env->promise_reject_callback();
   // The promise is rejected before JS land calls SetPromiseRejectCallback
@@ -108,6 +86,28 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
     fprintf(stderr, "Exception in PromiseRejectCallback:\n");
     PrintCaughtException(isolate, env->context(), try_catch);
   }
+}
+namespace task_queue {
+
+static void EnqueueMicrotask(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  CHECK(args[0]->IsFunction());
+
+  isolate->GetCurrentContext()->GetMicrotaskQueue()
+      ->EnqueueMicrotask(isolate, args[0].As<Function>());
+}
+
+static void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  env->context()->GetMicrotaskQueue()->PerformCheckpoint(env->isolate());
+}
+
+static void SetTickCallback(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsFunction());
+  env->set_tick_callback_function(args[0].As<Function>());
 }
 
 static void SetPromiseRejectCallback(

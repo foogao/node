@@ -104,9 +104,9 @@ static MaybeLocal<Value> WASIException(Local<Context> context,
   js_msg =
       String::Concat(isolate, js_msg, FIXED_ONE_BYTE_STRING(isolate, ", "));
   js_msg = String::Concat(isolate, js_msg, js_syscall);
-  Local<Object> e =
-    Exception::Error(js_msg)->ToObject(context)
-      .ToLocalChecked();
+  Local<Object> e;
+  if (!Exception::Error(js_msg)->ToObject(context).ToLocal(&e))
+    return MaybeLocal<Value>();
 
   if (e->Set(context,
              env->errno_string(),
@@ -128,13 +128,11 @@ WASI::WASI(Environment* env,
   options->allocator = &alloc_info_;
   int err = uvwasi_init(&uvw_, options);
   if (err != UVWASI_ESUCCESS) {
-    Local<Context> context = env->context();
-    MaybeLocal<Value> exception = WASIException(context, err, "uvwasi_init");
-
-    if (exception.IsEmpty())
+    Local<Value> exception;
+    if (!WASIException(env->context(), err, "uvwasi_init").ToLocal(&exception))
       return;
 
-    context->GetIsolate()->ThrowException(exception.ToLocalChecked());
+    env->isolate()->ThrowException(exception);
   }
 }
 
@@ -1678,9 +1676,7 @@ static void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> tmpl = env->NewFunctionTemplate(WASI::New);
-  auto wasi_wrap_string = FIXED_ONE_BYTE_STRING(env->isolate(), "WASI");
   tmpl->InstanceTemplate()->SetInternalFieldCount(WASI::kInternalFieldCount);
-  tmpl->SetClassName(wasi_wrap_string);
   tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
 
   env->SetProtoMethod(tmpl, "args_get", WASI::ArgsGet);
@@ -1733,9 +1729,7 @@ static void Initialize(Local<Object> target,
 
   env->SetInstanceMethod(tmpl, "_setMemory", WASI::_SetMemory);
 
-  target->Set(env->context(),
-              wasi_wrap_string,
-              tmpl->GetFunction(context).ToLocalChecked()).ToChecked();
+  env->SetConstructorFunction(target, "WASI", tmpl);
 }
 
 

@@ -53,14 +53,17 @@ added: v8.5.0
 If `name` is not provided, removes all `PerformanceMark` objects from the
 Performance Timeline. If `name` is provided, removes only the named mark.
 
-### `performance.eventLoopUtilization([util1][,util2])`
+### `performance.eventLoopUtilization([utilization1[, utilization2]])`
 <!-- YAML
-added: v14.10.0
+added:
+ - v14.10.0
+ - v12.19.0
 -->
 
-* `util1` {Object} The result of a previous call to `eventLoopUtilization()`
-* `util2` {Object} The result of a previous call to `eventLoopUtilization()`
-    prior to `util1`
+* `utilization1` {Object} The result of a previous call to
+    `eventLoopUtilization()`.
+* `utilization2` {Object} The result of a previous call to
+    `eventLoopUtilization()` prior to `utilization1`.
 * Returns {Object}
   * `idle` {number}
   * `active` {number}
@@ -69,26 +72,29 @@ added: v14.10.0
 The `eventLoopUtilization()` method returns an object that contains the
 cumulative duration of time the event loop has been both idle and active as a
 high resolution milliseconds timer. The `utilization` value is the calculated
-Event Loop Utilization (ELU). If bootstrapping has not yet finished, the
-properties have the value of 0.
+Event Loop Utilization (ELU).
 
-`util1` and `util2` are optional parameters.
+If bootstrapping has not yet finished on the main thread the properties have
+the value of `0`. The ELU is immediately available on [Worker threads][] since
+bootstrap happens within the event loop.
 
-If `util1` is passed then the delta between the current call's `active` and
-`idle` times are calculated and returned (similar to [`process.hrtime()`][]).
-Likewise the adjusted `utilization` value is calculated.
+Both `utilization1` and `utilization2` are optional parameters.
 
-If `util1` and `util2` are both passed then the calculation adjustments are
-done between the two arguments. This is a convenience option because unlike
-[`process.hrtime()`][] additional work is done to calculate the ELU.
+If `utilization1` is passed, then the delta between the current call's `active`
+and `idle` times, as well as the corresponding `utilization` value are
+calculated and returned (similar to [`process.hrtime()`][]).
 
-ELU is similar to CPU utilization except that it is calculated using high
-precision wall-clock time. It represents the percentage of time the event loop
-has spent outside the event loop's event provider (e.g. `epoll_wait`). No other
-CPU idle time is taken into consideration. The following is an example of how
-a mostly idle process will have a high ELU.
+If `utilization1` and `utilization2` are both passed, then the delta is
+calculated between the two arguments. This is a convenience option because,
+unlike [`process.hrtime()`][], calculating the ELU is more complex than a
+single subtraction.
 
-<!-- eslint-skip -->
+ELU is similar to CPU utilization, except that it only measures event loop
+statistics and not CPU usage. It represents the percentage of time the event
+loop has spent outside the event loop's event provider (e.g. `epoll_wait`).
+No other CPU idle time is taken into consideration. The following is an example
+of how a mostly idle process will have a high ELU.
+
 ```js
 'use strict';
 const { eventLoopUtilization } = require('perf_hooks').performance;
@@ -102,8 +108,8 @@ setImmediate(() => {
 ```
 
 Although the CPU is mostly idle while running this script, the value of
-`utilization` is 1. This is because the call to [`child_process.spawnSync()`][]
-blocks the event loop from proceeding.
+`utilization` is `1`. This is because the call to
+[`child_process.spawnSync()`][] blocks the event loop from proceeding.
 
 Passing in a user-defined object instead of the result of a previous call to
 `eventLoopUtilization()` will lead to undefined behavior. The return values
@@ -348,7 +354,9 @@ initialized.
 
 ### `performanceNodeTiming.idleTime`
 <!-- YAML
-added: v14.10.0
+added:
+  - v14.10.0
+  - v12.19.0
 -->
 
 * {number}
@@ -515,6 +523,38 @@ added: v8.5.0
 Returns a list of `PerformanceEntry` objects in chronological order
 with respect to `performanceEntry.startTime`.
 
+```js
+const {
+  performance,
+  PerformanceObserver
+} = require('perf_hooks');
+
+const obs = new PerformanceObserver((perfObserverList, observer) => {
+  console.log(perfObserverList.getEntries());
+  /**
+   * [
+   *   PerformanceEntry {
+   *     name: 'test',
+   *     entryType: 'mark',
+   *     startTime: 81.465639,
+   *     duration: 0
+   *   },
+   *   PerformanceEntry {
+   *     name: 'meow',
+   *     entryType: 'mark',
+   *     startTime: 81.860064,
+   *     duration: 0
+   *   }
+   * ]
+   */
+  observer.disconnect();
+});
+obs.observe({ entryTypes: ['mark'], buffered: true });
+
+performance.mark('test');
+performance.mark('meow');
+```
+
 ### `performanceObserverEntryList.getEntriesByName(name[, type])`
 <!-- YAML
 added: v8.5.0
@@ -529,6 +569,46 @@ with respect to `performanceEntry.startTime` whose `performanceEntry.name` is
 equal to `name`, and optionally, whose `performanceEntry.entryType` is equal to
 `type`.
 
+```js
+const {
+  performance,
+  PerformanceObserver
+} = require('perf_hooks');
+
+const obs = new PerformanceObserver((perfObserverList, observer) => {
+  console.log(perfObserverList.getEntriesByName('meow'));
+  /**
+   * [
+   *   PerformanceEntry {
+   *     name: 'meow',
+   *     entryType: 'mark',
+   *     startTime: 98.545991,
+   *     duration: 0
+   *   }
+   * ]
+   */
+  console.log(perfObserverList.getEntriesByName('nope')); // []
+
+  console.log(perfObserverList.getEntriesByName('test', 'mark'));
+  /**
+   * [
+   *   PerformanceEntry {
+   *     name: 'test',
+   *     entryType: 'mark',
+   *     startTime: 63.518931,
+   *     duration: 0
+   *   }
+   * ]
+   */
+  console.log(perfObserverList.getEntriesByName('test', 'measure')); // []
+  observer.disconnect();
+});
+obs.observe({ entryTypes: ['mark', 'measure'], buffered: true });
+
+performance.mark('test');
+performance.mark('meow');
+```
+
 ### `performanceObserverEntryList.getEntriesByType(type)`
 <!-- YAML
 added: v8.5.0
@@ -540,6 +620,38 @@ added: v8.5.0
 Returns a list of `PerformanceEntry` objects in chronological order
 with respect to `performanceEntry.startTime` whose `performanceEntry.entryType`
 is equal to `type`.
+
+```js
+const {
+  performance,
+  PerformanceObserver
+} = require('perf_hooks');
+
+const obs = new PerformanceObserver((perfObserverList, observer) => {
+  console.log(perfObserverList.getEntriesByType('mark'));
+  /**
+   * [
+   *   PerformanceEntry {
+   *     name: 'test',
+   *     entryType: 'mark',
+   *     startTime: 55.897834,
+   *     duration: 0
+   *   },
+   *   PerformanceEntry {
+   *     name: 'meow',
+   *     entryType: 'mark',
+   *     startTime: 56.350146,
+   *     duration: 0
+   *   }
+   * ]
+   */
+  observer.disconnect();
+});
+obs.observe({ entryTypes: ['mark'], buffered: true });
+
+performance.mark('test');
+performance.mark('meow');
+```
 
 ## `perf_hooks.monitorEventLoopDelay([options])`
 <!-- YAML
@@ -648,7 +760,7 @@ The minimum recorded event loop delay.
 added: v11.10.0
 -->
 
-* `percentile` {number} A percentile value between 1 and 100.
+* `percentile` {number} A percentile value in the range (0, 100].
 * Returns: {number}
 
 Returns the value at the given percentile.
@@ -756,13 +868,14 @@ obs.observe({ entryTypes: ['function'], buffered: true });
 require('some-module');
 ```
 
-[`'exit'`]: process.html#process_event_exit
-[`process.hrtime()`]: process.html#process_process_hrtime_time
-[`child_process.spawnSync()`]: #child_process_child_process_spawnsync_command_args_options
-[`timeOrigin`]: https://w3c.github.io/hr-time/#dom-performance-timeorigin
-[`window.performance`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/performance
-[Async Hooks]: async_hooks.html
+[Async Hooks]: async_hooks.md
 [High Resolution Time]: https://www.w3.org/TR/hr-time-2
 [Performance Timeline]: https://w3c.github.io/performance-timeline/
-[Web Performance APIs]: https://w3c.github.io/perf-timing-primer/
 [User Timing]: https://www.w3.org/TR/user-timing/
+[Web Performance APIs]: https://w3c.github.io/perf-timing-primer/
+[Worker threads]: worker_threads.md#worker_threads_worker_threads
+[`'exit'`]: process.md#process_event_exit
+[`child_process.spawnSync()`]: child_process.md#child_process_child_process_spawnsync_command_args_options
+[`process.hrtime()`]: process.md#process_process_hrtime_time
+[`timeOrigin`]: https://w3c.github.io/hr-time/#dom-performance-timeorigin
+[`window.performance`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/performance

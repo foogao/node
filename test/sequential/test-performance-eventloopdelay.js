@@ -44,7 +44,7 @@ const { sleep } = require('internal/util');
       () => monitorEventLoopDelay({ resolution: i }),
       {
         name: 'RangeError',
-        code: 'ERR_INVALID_OPT_VALUE'
+        code: 'ERR_INVALID_ARG_VALUE'
       }
     );
   });
@@ -86,7 +86,7 @@ const { sleep } = require('internal/util');
           }
         );
       });
-      [-1, 0, 101].forEach((i) => {
+      [-1, 0, 101, NaN].forEach((i) => {
         assert.throws(
           () => histogram.percentile(i),
           {

@@ -16,7 +16,9 @@ const ModuleFindPath = Module._findPath;
 const hacks = [
   'eslint-plugin-node-core',
   'eslint-plugin-markdown',
-  'babel-eslint',
+  '@babel/eslint-parser',
+  '@babel/plugin-syntax-class-properties',
+  '@babel/plugin-syntax-top-level-await',
 ];
 Module._findPath = (request, paths, isMain) => {
   const r = ModuleFindPath(request, paths, isMain);
@@ -37,8 +39,17 @@ Module._findPath = (request, paths, isMain) => {
 module.exports = {
   root: true,
   plugins: ['markdown', 'node-core'],
-  parser: 'babel-eslint',
-  parserOptions: { sourceType: 'script' },
+  parser: '@babel/eslint-parser',
+  parserOptions: {
+    babelOptions: {
+      plugins: [
+        Module._findPath('@babel/plugin-syntax-class-properties'),
+        Module._findPath('@babel/plugin-syntax-top-level-await'),
+      ],
+    },
+    requireConfigFile: false,
+    sourceType: 'script',
+  },
   overrides: [
     {
       files: [
@@ -46,6 +57,7 @@ module.exports = {
         'doc/api/module.md',
         'doc/api/modules.md',
         'doc/api/packages.md',
+        'doc/api/wasi.md',
         'test/es-module/test-esm-type-flag.js',
         'test/es-module/test-esm-type-flag-alias.js',
         '*.mjs',
@@ -150,6 +162,7 @@ module.exports = {
     'no-multiple-empty-lines': ['error', { max: 2, maxEOF: 0, maxBOF: 0 }],
     'no-new-require': 'error',
     'no-new-symbol': 'error',
+    'no-nonoctal-decimal-escape': 'error',
     'no-obj-calls': 'error',
     'no-octal': 'error',
     'no-path-concat': 'error',
@@ -226,6 +239,8 @@ module.exports = {
     'no-unreachable': 'error',
     'no-unsafe-finally': 'error',
     'no-unsafe-negation': 'error',
+    'no-unsafe-optional-chaining': 'error',
+    'no-unused-expressions': ['error', { allowShortCircuit: true }],
     'no-unused-labels': 'error',
     'no-unused-vars': ['error', { args: 'none', caughtErrors: 'all' }],
     'no-use-before-define': ['error', {
@@ -287,6 +302,11 @@ module.exports = {
     BigInt: 'readable',
     BigInt64Array: 'readable',
     BigUint64Array: 'readable',
+    Event: 'readable',
+    EventTarget: 'readable',
+    MessageChannel: 'readable',
+    MessageEvent: 'readable',
+    MessagePort: 'readable',
     TextEncoder: 'readable',
     TextDecoder: 'readable',
     queueMicrotask: 'readable',

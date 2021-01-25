@@ -40,12 +40,12 @@ The `benchmark` module is used by tests to run benchmarks.
 The `common` module is used by tests for consistency across repeated
 tasks.
 
-### `allowGlobals(...whitelist)`
+### `allowGlobals(...allowlist)`
 
-* `whitelist` [&lt;Array>][] Array of Globals
+* `allowlist` [&lt;Array>][] Array of Globals
 * return [&lt;Array>][]
 
-Takes `whitelist` and concats that with predefined `knownGlobals`.
+Takes `allowlist` and concats that with predefined `knownGlobals`.
 
 ### `canCreateSymLink()`
 
@@ -314,6 +314,15 @@ If `fn` is not provided, an empty function will be used.
 Returns a function that triggers an `AssertionError` if it is invoked. `msg` is
 used as the error message for the `AssertionError`.
 
+### `mustSucceed([fn])`
+
+* `fn` [&lt;Function>][] default = () => {}
+* return [&lt;Function>][]
+
+Returns a function that accepts arguments `(err, ...args)`. If `err` is not
+`undefined` or `null`, it triggers an `AssertionError`. Otherwise, it calls
+`fn(...args)`.
+
 ### `nodeProcessAborted(exitCode, signal)`
 
 * `exitCode` [&lt;number>][]
@@ -368,6 +377,11 @@ const { spawn } = require('child_process');
 
 spawn(...common.pwdCommand, { stdio: ['pipe'] });
 ```
+
+### `requireNoPackageJSONAbove()`
+
+Throws an `AssertionError` if a `package.json` file is in any ancestor
+directory. Such files may interfere with proper test functionality.
 
 ### `runWithInvalidFD(func)`
 
@@ -587,7 +601,7 @@ If set, crypto tests are skipped.
 ### `NODE_TEST_KNOWN_GLOBALS`
 
 A comma-separated list of variables names that are appended to the global
-variable whitelist. Alternatively, if `NODE_TEST_KNOWN_GLOBALS` is set to `'0'`,
+variable allowlist. Alternatively, if `NODE_TEST_KNOWN_GLOBALS` is set to `'0'`,
 global leak detection is disabled.
 
 ## Fixtures Module

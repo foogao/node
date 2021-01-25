@@ -7,6 +7,7 @@
   * [Closing issues and pull requests](#closing-issues-and-pull-requests)
   * [Author ready pull requests](#author-ready-pull-requests)
   * [Handling own pull requests](#handling-own-pull-requests)
+  * [Security issues](#managing-security-issues)
 * [Accepting modifications](#accepting-modifications)
   * [Code reviews](#code-reviews)
   * [Consensus seeking](#consensus-seeking)
@@ -86,6 +87,34 @@ Collaborators to focus on other pull requests. If your pull request is not ready
 to land but is [author ready](#author-ready-pull-requests), add the
 `author ready` label. If you wish to land the pull request yourself, use the
 "assign yourself" link to self-assign it.
+
+### Managing security issues
+
+Security issues should ideally be reported through the processes outlined in
+[SECURITY.md][security reporting]. This allows the collaborators to
+appropriately triage the report and address vulnerabilities in a planned
+security release. If an issue is opened in the public repo
+which describes a security issue, or if an issue is later identified to be
+describing a security issue, take the following steps:
+
+* Ask the originator to submit a report through Hacker one as outlined in
+  [SECURITY.md][security reporting].
+* Move the issue to the private repo called
+  [premature-disclosures](https://github.com/nodejs/premature-disclosures).
+* For any related pull requests create an associated issue in the
+  `premature-disclosures` repo and add a copy of the patch for the
+  pull request, and screenshots of discussion on the PR to the issue.
+* Open a ticket with GitHub asking that the PRs be deleted through
+  [GitHub suppport](https://support.github.com/contact)
+  using Node.js(team) as the account organization.
+* Open a new issue in the repository in which the issue was originally
+  reported with a brief FYI to the originator. `FYI @xxxx we asked github
+  to delete your PR while we work on releases in private.` with the title
+  `FYI - PR deleted #YYYY`.
+* Email `tsc@iojs.org` with the link to the issues in the
+  `premature-disclosures` repo so that the TSC is aware that they
+  may need to expedite handling of the issue due to premature
+  disclosure.
 
 ## Accepting modifications
 
@@ -243,6 +272,12 @@ through to make sure it says something like "Started 5 seconds ago"
 Copy/paste the URL for the job into a comment in the pull request.
 [`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
 is an exception where the GitHub bot will automatically post for you.
+
+The [`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
+CI job can be started by adding the `request-ci` label into the pull request.
+Once this label is added, `github-actions bot` will start
+the `node-test-pull-request` automatically. If the `github-actions bot`
+is unable to start the job, it will update the label with `request-ci-failed`.
 
 ### Internal vs. public API
 
@@ -469,6 +504,12 @@ code. If you wish to create the token yourself in advance, see
 
 ### Technical HOWTO
 
+Infrequently, it is necessary to manually perform the steps required to land a
+pull request rather than rely on `git-node`.
+
+<details>
+<Summary>Manual Landing Steps</Summary>
+
 Clear any `am`/`rebase` that might already be underway:
 
 ```text
@@ -599,7 +640,7 @@ Other changes might have landed on master since the successful CI run. As a
 precaution, run tests (`make -j4 test` or `vcbuild test`).
 
 Confirm that the commit message format is correct using
-[core-validate-commit](https://github.com/evanlucas/core-validate-commit).
+[core-validate-commit](https://github.com/nodejs/core-validate-commit).
 
 ```text
 $ git rev-list upstream/master...HEAD | xargs core-validate-commit
@@ -625,6 +666,8 @@ Close the pull request with a "Landed in `<commit hash>`" comment. Even if
 your pull request shows the purple merged status,
 add the "Landed in \<commit hash>..\<commit hash>" comment if you added
 more than one commit.
+
+</details>
 
 ### Troubleshooting
 
@@ -771,10 +814,11 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` can help.
 [backporting guide]: backporting-to-release-lines.md
 [commit message guidelines]: contributing/pull-requests.md#commit-message-guidelines
 [commit-example]: https://github.com/nodejs/node/commit/b636ba8186
+[git-email]: https://help.github.com/articles/setting-your-commit-email-address-in-git/
 [git-node]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md
 [git-node-metadata]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-metadata
 [git-username]: https://help.github.com/articles/setting-your-username-in-git/
-[git-email]: https://help.github.com/articles/setting-your-commit-email-address-in-git/
 [node-core-utils-credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
 [node-core-utils-issues]: https://github.com/nodejs/node-core-utils/issues
+[security reporting]: https://github.com/nodejs/node/blob/HEAD/SECURITY.md
 [unreliable tests]: https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22CI+%2F+flaky+test%22

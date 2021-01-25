@@ -199,7 +199,9 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
       object_template,
       {},       // global object
       {},       // deserialization callback
-      microtask_queue() ? microtask_queue().get() : nullptr);
+      microtask_queue() ?
+          microtask_queue().get() :
+          env->isolate()->GetCurrentContext()->GetMicrotaskQueue());
   if (ctx.IsEmpty()) return MaybeLocal<Context>();
   // Only partially initialize the context - the primordials are left out
   // and only initialized when necessary.
@@ -927,11 +929,13 @@ bool ContextifyScript::EvalMachine(Environment* env,
   if (!env->can_call_into_js())
     return false;
   if (!ContextifyScript::InstanceOf(env, args.Holder())) {
-    env->ThrowTypeError(
+    THROW_ERR_INVALID_THIS(
+        env,
         "Script methods can only be called on script instances.");
     return false;
   }
   TryCatchScope try_catch(env);
+  Isolate::SafeForTerminationScope safe_for_termination(env->isolate());
   ContextifyScript* wrapped_script;
   ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.Holder(), false);
   Local<UnboundScript> unbound_script =
@@ -1278,21 +1282,11 @@ void MicrotaskQueueWrap::New(const FunctionCallbackInfo<Value>& args) {
 
 void MicrotaskQueueWrap::Init(Environment* env, Local<Object> target) {
   HandleScope scope(env->isolate());
-  Local<String> class_name =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "MicrotaskQueue");
-
   Local<FunctionTemplate> tmpl = env->NewFunctionTemplate(New);
   tmpl->InstanceTemplate()->SetInternalFieldCount(
       ContextifyScript::kInternalFieldCount);
-  tmpl->SetClassName(class_name);
-
-  if (target->Set(env->context(),
-                  class_name,
-                  tmpl->GetFunction(env->context()).ToLocalChecked())
-          .IsNothing()) {
-    return;
-  }
   env->set_microtask_queue_ctor_template(tmpl);
+  env->SetConstructorFunction(target, "MicrotaskQueue", tmpl);
 }
 
 
